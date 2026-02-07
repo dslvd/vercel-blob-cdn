@@ -21,10 +21,11 @@ export default function Home() {
           setUrl('');
 
           try {
-            const blob = await upload(file.name, file, {
+            const blob = await upload(`cdn/${file.name}`, file, {
               access: 'public',
-              handleUploadUrl: '/api/upload', // our route
+              handleUploadUrl: '/api/upload',
             });
+
 
             setUrl(blob.url);
           } finally {
