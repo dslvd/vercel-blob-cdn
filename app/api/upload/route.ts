@@ -10,8 +10,8 @@ export async function POST(request: Request) {
     onBeforeGenerateToken: async (pathname) => {
       return {
         // optional but recommended
-        addRandomSuffix: true,
-
+        addRandomSuffix: false,
+        allowOverwrite: false,
         // set limits (adjust if you want)
         maximumSizeInBytes: 50 * 1024 * 1024, // 50MB
         // allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'], // uncomment if you want to restrict

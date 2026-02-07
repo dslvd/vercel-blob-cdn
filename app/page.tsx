@@ -21,7 +21,7 @@ export default function Home() {
         handleUploadUrl: '/api/upload',
       });
 
-      setUrl(blob.url);
+      setUrl(`${window.location.origin}/${blob.pathname}`);
     } finally {
       setUploading(false);
     }
