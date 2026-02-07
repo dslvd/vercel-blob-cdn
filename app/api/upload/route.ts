@@ -7,9 +7,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   const jsonResponse = await handleUpload({
     body,
     request,
-    onBeforeGenerateToken: async (pathname) => {
+    onBeforeGenerateToken: async (pathname, clientPayload, multipart) => {
       return {
-        pathname: `cdn/${pathname}`,
+        allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        tokenPayload: JSON.stringify({
+          pathname: `cdn/${pathname}`,
+        }),
       };
     },
     onUploadCompleted: async ({ blob }) => {
