@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { upload } from '@vercel/blob/client';
 
 export default function Home() {
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [url, setUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -13,6 +13,7 @@ export default function Home() {
     if (!file) return;
 
     setUploading(true);
+    setUrl('');
 
     try {
       const blob = await upload(`cdn/${file.name}`, file, {
@@ -20,20 +21,15 @@ export default function Home() {
         handleUploadUrl: '/api/upload',
       });
 
-      const newUrl = `${window.location.origin}/${blob.pathname}`;
-      setUploadedFiles(prev => [newUrl, ...prev]);
+      setUrl(`${window.location.origin}/${blob.pathname}`);
     } finally {
       setUploading(false);
     }
   };
 
-  const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url);
-  };
-
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap');
 
         * {
@@ -79,26 +75,7 @@ export default function Home() {
             transform: translateY(0);
           }
         }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-          background: rgba(88, 101, 242, 0.5);
-          border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(88, 101, 242, 0.8);
-        }
-      `}} />
+      `}</style>
 
       <main style={{ 
         padding: '4rem 6vw',
@@ -173,8 +150,8 @@ export default function Home() {
 
         {uploading && (
           <p style={{
-            marginTop: '1.5rem',
-            fontSize: '0.9rem',
+            marginTop: '2rem',
+            fontSize: '1.1rem',
             color: '#666666',
             fontStyle: 'italic',
             animation: 'fadeSlideIn 0.5s ease-out'
@@ -183,94 +160,54 @@ export default function Home() {
           </p>
         )}
 
-        {uploadedFiles.length > 0 && (
+        {url && (
           <div style={{
-            marginTop: '2rem',
+            marginTop: '3rem',
             animation: 'fadeSlideIn 0.8s ease-out',
+            textAlign: 'center',
             width: '100%'
           }}>
             <p style={{
-              fontSize: '1rem',
+              fontSize: '1.5rem',
               marginBottom: '1rem',
-              color: '#5865F2',
-              fontWeight: 700,
-              textAlign: 'center'
+              color: '#00d9ff'
             }}>
-              ✅ Uploaded Files ({uploadedFiles.length})
+              ✅ Uploaded:
             </p>
-            
-            <div style={{
-              maxHeight: '300px',
-              overflowY: 'auto',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '1rem'
-            }}>
-              {uploadedFiles.map((url, index) => (
-                <div
-                  key={index}
-                  style={{
-                    marginBottom: index < uploadedFiles.length - 1 ? '0.75rem' : '0',
-                    padding: '0.75rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    transition: 'all 0.3s',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => copyToClipboard(url)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(88, 101, 242, 0.1)';
-                    e.currentTarget.style.borderColor = '#5865F2';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem'
-                  }}>
-                    <a 
-                      href={url} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      style={{
-                        color: '#f5f5f0',
-                        fontSize: '0.85rem',
-                        textDecoration: 'none',
-                        wordBreak: 'break-all',
-                        flex: 1
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {url}
-                    </a>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      color: '#5865F2',
-                      whiteSpace: 'nowrap',
-                      opacity: 0.8
-                    }}>
-                      Click to copy
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{
+                color: '#f5f5f0',
+                fontSize: '1rem',
+                wordBreak: 'break-all',
+                textDecoration: 'none',
+                padding: '1rem',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                display: 'block',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 51, 102, 0.1)';
+                e.currentTarget.style.borderColor = '#ff3366';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              {url}
+            </a>
             <p style={{
-              marginTop: '0.75rem',
+              marginTop: '1rem',
               opacity: 0.7,
-              fontSize: '0.8rem',
-              color: '#666666',
-              textAlign: 'center'
+              fontSize: '0.95rem',
+              color: '#666666'
             }}>
-              Click any URL to copy to clipboard
+              Use that link as your CDN URL.
             </p>
           </div>
         )}
