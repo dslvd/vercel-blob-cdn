@@ -6,18 +6,36 @@ import { useRouter } from 'next/navigation';
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check password (default: admin123, change ADMIN_PASSWORD env variable in production)
-    if (password === 'admin123') {
-      sessionStorage.setItem('admin_authenticated', 'true');
-      router.push('/admin/dashboard');
-    } else {
-      setError('Invalid password');
-      setPassword('');
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        sessionStorage.setItem('admin_authenticated', 'true');
+        router.push('/admin/dashboard');
+      } else {
+        setError('Invalid password');
+        setPassword('');
+      }
+    } catch (error) {
+      setError('Authentication failed');
+      console.error('Auth error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,23 +101,26 @@ export default function AdminLogin() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               width: '100%',
               padding: '0.875rem',
-              background: 'linear-gradient(135deg, #5865F2 0%, #8B5CF6 100%)',
+              background: loading 
+                ? 'rgba(88, 101, 242, 0.5)' 
+                : 'linear-gradient(135deg, #5865F2 0%, #8B5CF6 100%)',
               border: 'none',
               borderRadius: '8px',
               color: '#fff',
               fontSize: '0.8rem',
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'transform 0.2s',
               fontFamily: "'Montserrat', sans-serif"
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = 'scale(1.02)')}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            Login
+            {loading ? 'Checking...' : 'Login'}
           </button>
         </form>
 
