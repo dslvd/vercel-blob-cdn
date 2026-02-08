@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const pathname = `cdn/${params.path.join('/')}`;
+    const { path } = await params;
+    const pathname = `cdn/${path.join('/')}`;
     
     // Construct the Vercel Blob storage URL
     const blobUrl = `https://rcltxppgseuupozb.public.blob.vercel-storage.com/${pathname}`;
@@ -23,10 +24,11 @@ export async function GET(
 
 export async function HEAD(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const pathname = `cdn/${params.path.join('/')}`;
+    const { path } = await params;
+    const pathname = `cdn/${path.join('/')}`;
     const blobUrl = `https://rcltxppgseuupozb.public.blob.vercel-storage.com/${pathname}`;
     
     // Check if file exists
