@@ -86,7 +86,7 @@ export default function Home() {
         handleUploadUrl: '/api/upload',
       });
 
-      const newUrl = `${window.location.origin}/${blob.pathname}`;
+      const newUrl = blob.url;
       setUploadedFiles(prev => [newUrl, ...prev]);
 
       // Add to public history via API
@@ -133,6 +133,13 @@ export default function Home() {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
+
+  const totalStorageBytes = 1 * 1024 * 1024 * 1024;
+  const usedStorageBytes = publicHistory.reduce(
+    (total, record) => total + (record.size || 0),
+    0
+  );
+  const usagePercent = Math.min(100, (usedStorageBytes / totalStorageBytes) * 100);
 
   return (
     <>
@@ -536,15 +543,64 @@ export default function Home() {
             </div>
           )}
           
-          <p style={{
+          <div style={{
             marginTop: '0.75rem',
-            opacity: 0.7,
-            fontSize: '0.8rem',
-            color: '#666666',
-            textAlign: 'center'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '2rem',
+            flexWrap: 'wrap'
           }}>
-            Showing {publicHistory.length} recent uploads {verifyingFiles ? '• Verifying files...' : ''}
-          </p>
+            <p style={{
+              opacity: 0.7,
+              fontSize: '0.8rem',
+              color: '#666666',
+              margin: 0
+            }}>
+              Showing {publicHistory.length} recent uploads {verifyingFiles ? '• Verifying files...' : ''}
+            </p>
+            
+            <div style={{
+              flex: '1',
+              minWidth: '250px',
+              maxWidth: '350px'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.7rem',
+                color: '#666666',
+                marginBottom: '0.4rem'
+              }}>
+                <span>Storage</span>
+                <span>
+                  {formatFileSize(usedStorageBytes)} / {formatFileSize(totalStorageBytes)}
+                </span>
+              </div>
+              <div style={{
+                height: '8px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                borderRadius: '999px',
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${usagePercent}%`,
+                  background: 'linear-gradient(90deg, #5865F2 0%, #8B5CF6 100%)',
+                  transition: 'width 0.4s ease'
+                }} />
+              </div>
+              <div style={{
+                marginTop: '0.3rem',
+                fontSize: '0.65rem',
+                color: '#666666',
+                textAlign: 'right'
+              }}>
+                {usagePercent.toFixed(1)}% used
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </>
