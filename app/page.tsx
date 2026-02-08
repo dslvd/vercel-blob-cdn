@@ -15,6 +15,7 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [publicHistory, setPublicHistory] = useState<UploadRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [verifyingFiles, setVerifyingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load public history on mount
@@ -24,16 +25,53 @@ export default function Home() {
 
   const fetchPublicHistory = async () => {
     try {
+      setVerifyingFiles(true);
       const response = await fetch('/api/history');
       if (response.ok) {
         const data = await response.json();
-        setPublicHistory(data.history || []);
+        const records = data.history || [];
+        
+        // Verify each file still exists
+        const verifiedRecords = await verifyFileExistence(records);
+        setPublicHistory(verifiedRecords);
       }
     } catch (error) {
       console.error('Failed to fetch history:', error);
     } finally {
       setLoadingHistory(false);
+      setVerifyingFiles(false);
     }
+  };
+
+  const verifyFileExistence = async (records: UploadRecord[]): Promise<UploadRecord[]> => {
+    const verifiedRecords: UploadRecord[] = [];
+    const deletedUrls: string[] = [];
+
+    // Check each file in batches to avoid overwhelming the server
+    for (const record of records) {
+      try {
+        const response = await fetch(record.url, { method: 'HEAD' });
+        if (response.ok) {
+          verifiedRecords.push(record);
+        } else {
+          deletedUrls.push(record.url);
+        }
+      } catch (error) {
+        // If fetch fails, assume file is deleted
+        deletedUrls.push(record.url);
+      }
+    }
+
+    // Remove deleted files from history
+    if (deletedUrls.length > 0) {
+      await fetch('/api/history/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: deletedUrls })
+      });
+    }
+
+    return verifiedRecords;
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,16 +370,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            
-            <p style={{
-              marginTop: '0.75rem',
-              opacity: 0.7,
-              fontSize: '0.8rem',
-              color: '#666666',
-              textAlign: 'center'
-            }}>
-              Click any URL to copy to clipboard
-            </p>
           </div>
         )}
 
@@ -352,15 +380,52 @@ export default function Home() {
           maxWidth: '800px',
           animation: 'fadeSlideIn 1s ease-out 0.4s backwards'
         }}>
-          <h2 style={{
-            fontSize: '1rem',
-            fontWeight: 700,
-            marginBottom: '1.5rem',
-            textAlign: 'center',
-            color: '#f5f5f0'
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '1rem',
+            marginBottom: '1.5rem'
           }}>
-            📁 Public Upload History
-          </h2>
+            <h2 style={{
+              fontSize: '1rem',
+              fontWeight: 700,
+              textAlign: 'center',
+              color: '#f5f5f0'
+            }}>
+              📁 Public Upload History
+            </h2>
+            <button
+              onClick={fetchPublicHistory}
+              disabled={verifyingFiles}
+              style={{
+                padding: '0.5rem 0.8rem',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                color: verifyingFiles ? '#666666' : '#f5f5f0',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid',
+                borderColor: verifyingFiles ? '#666666' : 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '20px',
+                cursor: verifyingFiles ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                if (!verifyingFiles) {
+                  e.currentTarget.style.borderColor = '#5865F2';
+                  e.currentTarget.style.background = 'rgba(88, 101, 242, 0.1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!verifyingFiles) {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                }
+              }}
+            >
+              {verifyingFiles ? '🔄 Refreshing...' : '🔄 Refresh'}
+            </button>
+          </div>
 
           {loadingHistory ? (
             <div style={{
@@ -478,7 +543,7 @@ export default function Home() {
             color: '#666666',
             textAlign: 'center'
           }}>
-            Showing {publicHistory.length} recent uploads • Click to copy URL
+            Showing {publicHistory.length} recent uploads {verifyingFiles ? '• Verifying files...' : ''}
           </p>
         </div>
       </main>
