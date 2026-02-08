@@ -5,6 +5,7 @@ interface UploadRecord {
   filename: string;
   timestamp: number;
   size: number;
+  ip?: string;
 }
 
 // This would ideally be stored in a database, but for simplicity we'll use persistent storage
@@ -41,11 +42,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get client IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+               request.headers.get('x-real-ip') ||
+               'Unknown';
+
     const record: UploadRecord = {
       url,
       filename,
       size: size || 0,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ip
     };
 
     await addToHistory(record);

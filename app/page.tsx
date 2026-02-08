@@ -8,6 +8,7 @@ interface UploadRecord {
   filename: string;
   timestamp: number;
   size: number;
+  ip?: string;
 }
 
 export default function Home() {

@@ -5,6 +5,7 @@ interface UploadRecord {
   filename: string;
   timestamp: number;
   size: number;
+  ip?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -52,8 +53,4 @@ async function removeDeletedFiles(urls: string[]): Promise<void> {
   global.uploadHistory = (global.uploadHistory as UploadRecord[]).filter(
     record => !urls.includes(record.url)
   );
-}
-
-declare global {
-  var uploadHistory: UploadRecord[] | undefined;
 }

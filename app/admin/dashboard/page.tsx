@@ -8,6 +8,7 @@ interface UploadRecord {
   filename: string;
   timestamp: number;
   size: number;
+  ip?: string;
 }
 
 export default function AdminDashboard() {
@@ -281,6 +282,13 @@ export default function AdminDashboard() {
                   }}>Uploaded</th>
                   <th style={{
                     padding: '1rem',
+                    textAlign: 'left',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: '#666666'
+                  }}>IP Address</th>
+                  <th style={{
+                    padding: '1rem',
                     textAlign: 'center',
                     fontSize: '0.85rem',
                     fontWeight: 700,
@@ -325,6 +333,14 @@ export default function AdminDashboard() {
                       color: '#666666'
                     }}>
                       {formatTimestamp(file.timestamp)}
+                    </td>
+                    <td style={{
+                      padding: '1rem',
+                      fontSize: '0.875rem',
+                      color: '#666666',
+                      fontFamily: 'monospace'
+                    }}>
+                      {file.ip || 'Unknown'}
                     </td>
                     <td style={{
                       padding: '1rem',
