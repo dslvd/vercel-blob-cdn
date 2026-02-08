@@ -86,7 +86,7 @@ export default function Home() {
         handleUploadUrl: '/api/upload',
       });
 
-      const newUrl = blob.url;
+      const newUrl = `${window.location.origin}/${blob.pathname}`;
       setUploadedFiles(prev => [newUrl, ...prev]);
 
       // Add to public history via API
