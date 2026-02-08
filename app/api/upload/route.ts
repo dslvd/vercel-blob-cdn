@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return {
         // optional but recommended
         addRandomSuffix: false,
-        allowOverwrite: false,
+        allowOverwrite: true,
         // set limits (adjust if you want)
         maximumSizeInBytes: 50 * 1024 * 1024, // 50MB
         // allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'], // uncomment if you want to restrict

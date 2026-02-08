@@ -16,6 +16,7 @@ export default function Home() {
   const [publicHistory, setPublicHistory] = useState<UploadRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [verifyingFiles, setVerifyingFiles] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load public history on mount
@@ -108,7 +109,13 @@ export default function Home() {
   };
 
   const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedUrl(url);
+      setTimeout(() => setCopiedUrl(null), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy to clipboard:', err);
+      alert('Failed to copy URL');
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -602,6 +609,26 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Copy Success Toast */}
+        {copiedUrl && (
+          <div style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            background: 'linear-gradient(135deg, #5865F2 0%, #8B5CF6 100%)',
+            color: '#fff',
+            padding: '1rem 1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(88, 101, 242, 0.3)',
+            animation: 'fadeSlideIn 0.3s ease-out',
+            zIndex: 1000,
+            fontSize: '0.9rem',
+            fontWeight: 700
+          }}>
+            ✓ Copied to clipboard!
+          </div>
+        )}
       </main>
     </>
   );
