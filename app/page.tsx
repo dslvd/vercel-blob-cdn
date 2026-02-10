@@ -26,19 +26,19 @@ export default function Home() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load public history on mount
   useEffect(() => {
     fetchPublicHistory();
   }, []);
 
   const fetchPublicHistory = async () => {
+    const startTime = Date.now();
     try {
       setVerifyingFiles(true);
       const response = await fetch('/api/history');
       if (response.ok) {
         const data = await response.json();
         const records = data.history || [];
-        
+
         // Verify each file still exists
         const verifiedRecords = await verifyFileExistence(records);
         setPublicHistory(verifiedRecords);
@@ -46,6 +46,10 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to fetch history:', error);
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 600) {
+        await new Promise((resolve) => setTimeout(resolve, 600 - elapsed));
+      }
       setLoadingHistory(false);
       setVerifyingFiles(false);
     }
@@ -223,6 +227,11 @@ export default function Home() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
 
         @keyframes pulse {
@@ -468,69 +477,105 @@ export default function Home() {
               overflowY: 'auto',
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '1rem'
             }}>
-              {uploadedFiles.map((url, index) => (
-                <div
-                  key={index}
-                  style={{
-                    marginBottom: index < uploadedFiles.length - 1 ? '0.75rem' : '0',
-                    padding: '1rem 1.25rem',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '14px',
-                    transition: 'all 0.3s',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => copyToClipboard(url)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.borderColor = '#ffffff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                  }}
-                >
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '120px 1fr',
-                    gap: '0.5rem 1rem',
-                    alignItems: 'center',
-                    textAlign: 'left'
-                  }}>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: '#9a9a9a',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em'
-                    }}>
-                      Name
-                    </div>
-                    <div style={{
-                      fontSize: '0.95rem',
-                      color: '#f5f5f5',
-                      fontWeight: 500,
-                      wordBreak: 'break-all'
-                    }}>
-                      {url.split('/').pop()}
-                    </div>
+              {uploadedFiles.map((url, index) => {
+                const filename = url.split('/').pop() || 'file';
+                const extension = filename.includes('.')
+                  ? filename.split('.').pop()?.toUpperCase()
+                  : 'FILE';
 
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: '#9a9a9a',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em'
-                    }}>
-                      Link
-                    </div>
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      marginBottom: index < uploadedFiles.length - 1 ? '0.85rem' : '0',
+                      padding: '1.1rem 1.25rem',
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '16px',
+                      transition: 'all 0.3s',
+                      cursor: 'pointer',
+                      boxShadow: '0 10px 24px rgba(0, 0, 0, 0.25)'
+                    }}
+                    onClick={() => copyToClipboard(url)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05))';
+                      e.currentTarget.style.borderColor = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    }}
+                  >
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: '1rem'
                     }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        minWidth: 0
+                      }}>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '999px',
+                          background: '#ffffff',
+                          opacity: 0.7,
+                          boxShadow: '0 0 12px rgba(255, 255, 255, 0.4)'
+                        }} />
+                        <div style={{ textAlign: 'left', minWidth: 0 }}>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: '#f5f5f5',
+                            fontWeight: 500,
+                            wordBreak: 'break-all'
+                          }}>
+                            {filename}
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: '#9a9a9a'
+                          }}>
+                            cdn/{filename}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#f5f5f5',
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '999px',
+                        letterSpacing: '0.08em'
+                      }}>
+                        {extension}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      marginTop: '0.9rem',
+                      display: 'grid',
+                      gridTemplateColumns: '80px 1fr',
+                      gap: '0.45rem 1rem',
+                      alignItems: 'center',
+                      textAlign: 'left'
+                    }}>
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
+                      }}>
+                        Link
+                      </div>
                       <a 
                         href={url} 
                         target="_blank" 
@@ -545,18 +590,47 @@ export default function Home() {
                       >
                         {url}
                       </a>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        color: '#bfbfbf',
-                        whiteSpace: 'nowrap',
-                        opacity: 0.85
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
                       }}>
-                        Click to copy
-                      </span>
+                        Action
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyToClipboard(url);
+                        }}
+                        style={{
+                          justifySelf: 'start',
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: '0.75rem',
+                          fontWeight: 400,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: '#0a0a0a',
+                          background: '#ffffff',
+                          border: '1px solid #ffffff',
+                          borderRadius: '999px',
+                          padding: '0.35rem 0.75rem',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#e6e6e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#ffffff';
+                        }}
+                      >
+                        Copy
+                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -585,24 +659,24 @@ export default function Home() {
               Upload History
             </h2>
             <button
-              onClick={fetchPublicHistory}
-              disabled={verifyingFiles}
+              onClick={() => !verifyingFiles && fetchPublicHistory()}
+              aria-label="Refresh upload history"
               style={{
-                padding: '0.5rem 0.8rem',
-                fontSize: '0.7rem',
-                fontWeight: 200,
-                color: verifyingFiles ? '#666666' : '#f5f5f0',
+                width: '32px',
+                height: '32px',
+                borderRadius: '999px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid',
-                borderColor: verifyingFiles ? '#666666' : 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '20px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: verifyingFiles ? 'not-allowed' : 'pointer',
-                transition: 'all 0.3s'
+                transition: 'all 0.25s ease'
               }}
               onMouseEnter={(e) => {
                 if (!verifyingFiles) {
-                  e.currentTarget.style.borderColor = '#ffffff';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -612,7 +686,31 @@ export default function Home() {
                 }
               }}
             >
-              {verifyingFiles ? '🔄 Refreshing...' : '🔄 Refresh'}
+              {verifyingFiles ? (
+                <span style={{
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '999px',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  borderTopColor: 'transparent',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.85)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+              )}
             </button>
           </div>
 
