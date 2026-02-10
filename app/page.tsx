@@ -118,6 +118,18 @@ export default function Home() {
     toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2200);
   };
 
+  const generateRandomFilename = (originalFilename: string): string => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let randomName = '';
+    for (let i = 0; i < 6; i++) {
+      randomName += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const extension = originalFilename.includes('.') 
+      ? '.' + originalFilename.split('.').pop() 
+      : '';
+    return randomName + extension;
+  };
+
   const verifyFileExistence = async (records: UploadRecord[]): Promise<UploadRecord[]> => {
     const verifiedRecords: UploadRecord[] = [];
     const deletedUrls: string[] = [];
@@ -164,7 +176,8 @@ export default function Home() {
     setUploadTotalBytes(file.size);
 
     try {
-      const blob = await upload(`cdn/${file.name}`, file, {
+      const randomFilename = generateRandomFilename(file.name);
+      const blob = await upload(`d/${randomFilename}`, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
         onUploadProgress: (progress) => {
@@ -559,7 +572,7 @@ export default function Home() {
 
         <p style={{
           marginTop: '0.85rem',
-          fontSize: '0.8rem',
+          fontSize: '0.65rem',
           color: '#9a9a9a',
           textAlign: 'center',
           letterSpacing: '0.02em'
@@ -692,7 +705,7 @@ export default function Home() {
                             fontSize: '0.75rem',
                             color: '#9a9a9a'
                           }}>
-                            cdn/{filename}
+                            d/{filename}
                           </div>
                         </div>
                       </div>
