@@ -137,7 +137,7 @@ export default function Home() {
     return verifiedRecords;
   };
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = async (file: File, notify: boolean = true) => {
     setUploading(true);
     setUploadProgress(0);
     setUploadStatus('Preparing upload...');
@@ -174,10 +174,15 @@ export default function Home() {
 
       // Refresh history
       await fetchPublicHistory();
-      showToast('Upload complete', 'success');
+      if (notify) {
+        showToast('Upload complete', 'success');
+      }
     } catch (error) {
       console.error('Upload failed:', error);
-      showToast('Upload failed', 'error');
+      if (notify) {
+        showToast('Upload failed', 'error');
+      }
+      throw error;
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -187,17 +192,39 @@ export default function Home() {
     }
   };
 
+  const uploadFiles = async (files: File[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of files) {
+      try {
+        await uploadFile(file, false);
+        successCount += 1;
+      } catch {
+        errorCount += 1;
+      }
+    }
+
+    if (successCount > 0) {
+      showToast(`${successCount} file${successCount === 1 ? '' : 's'} uploaded`, 'success');
+    }
+    if (errorCount > 0) {
+      showToast('Some uploads failed', 'error');
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await uploadFile(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    await uploadFiles(files);
+    e.target.value = '';
   };
 
   const handleFileDrop = async (dataTransfer: DataTransfer | null) => {
-    const file = dataTransfer?.files?.[0];
-    if (!file) return;
+    const files = Array.from(dataTransfer?.files || []);
+    if (files.length === 0) return;
     setActiveView('upload');
-    await uploadFile(file);
+    await uploadFiles(files);
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
@@ -361,6 +388,7 @@ export default function Home() {
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
@@ -532,7 +560,7 @@ export default function Home() {
               fontWeight: 200,
               textAlign: 'center'
             }}>
-              Uploaded ({uploadedFiles.length})
+              Uploaded Files • {uploadedFiles.length}
             </p>
             
             <div style={{
