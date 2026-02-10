@@ -460,15 +460,15 @@ export default function Home() {
               fontWeight: 700,
               textAlign: 'center'
             }}>
-              ✅ Your Uploads ({uploadedFiles.length})
+              Uploaded ({uploadedFiles.length})
             </p>
             
             <div style={{
-              maxHeight: '300px',
+              maxHeight: '360px',
               overflowY: 'auto',
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
+              borderRadius: '16px',
               padding: '1rem'
             }}>
               {uploadedFiles.map((url, index) => (
@@ -476,52 +476,84 @@ export default function Home() {
                   key={index}
                   style={{
                     marginBottom: index < uploadedFiles.length - 1 ? '0.75rem' : '0',
-                    padding: '0.75rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
+                    padding: '1rem 1.25rem',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '14px',
                     transition: 'all 0.3s',
                     cursor: 'pointer'
                   }}
                   onClick={() => copyToClipboard(url)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(88, 101, 242, 0.1)';
-                    e.currentTarget.style.borderColor = '#5865F2';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.borderColor = '#ffffff';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
                   }}
                 >
                   <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    display: 'grid',
+                    gridTemplateColumns: '120px 1fr',
+                    gap: '0.5rem 1rem',
                     alignItems: 'center',
-                    gap: '1rem'
+                    textAlign: 'left'
                   }}>
-                    <a 
-                      href={url} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      style={{
-                        color: '#f5f5f5',
-                        fontSize: '0.85rem',
-                        textDecoration: 'none',
-                        wordBreak: 'break-all',
-                        flex: 1
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {url}
-                    </a>
-                    <span style={{
+                    <div style={{
                       fontSize: '0.75rem',
-                      color: '#bfbfbf',
-                      whiteSpace: 'nowrap',
-                      opacity: 0.8
+                      color: '#9a9a9a',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em'
                     }}>
-                      Click to copy
-                    </span>
+                      Name
+                    </div>
+                    <div style={{
+                      fontSize: '0.95rem',
+                      color: '#f5f5f5',
+                      fontWeight: 500,
+                      wordBreak: 'break-all'
+                    }}>
+                      {url.split('/').pop()}
+                    </div>
+
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#9a9a9a',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em'
+                    }}>
+                      Link
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '1rem'
+                    }}>
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{
+                          color: '#bfbfbf',
+                          fontSize: '0.8rem',
+                          textDecoration: 'none',
+                          wordBreak: 'break-all'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {url}
+                      </a>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        color: '#bfbfbf',
+                        whiteSpace: 'nowrap',
+                        opacity: 0.85
+                      }}>
+                        Click to copy
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
