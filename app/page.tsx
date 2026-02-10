@@ -14,6 +14,12 @@ interface UploadRecord {
 export default function Home() {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadLoadedBytes, setUploadLoadedBytes] = useState(0);
+  const [uploadTotalBytes, setUploadTotalBytes] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [activeView, setActiveView] = useState<'upload' | 'history'>('upload');
   const [publicHistory, setPublicHistory] = useState<UploadRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [verifyingFiles, setVerifyingFiles] = useState(false);
@@ -76,16 +82,25 @@ export default function Home() {
     return verifiedRecords;
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = async (file: File) => {
     setUploading(true);
+    setUploadProgress(0);
+    setUploadStatus('Preparing upload...');
+    setUploadLoadedBytes(0);
+    setUploadTotalBytes(file.size);
 
     try {
       const blob = await upload(`cdn/${file.name}`, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
+        onUploadProgress: (progress) => {
+          const total = progress.total ?? file.size;
+          const percent = total > 0 ? Math.round((progress.loaded / total) * 100) : 0;
+          setUploadProgress(Math.min(100, percent));
+          setUploadStatus(`Uploading ${percent}%`);
+          setUploadLoadedBytes(progress.loaded);
+          setUploadTotalBytes(total);
+        }
       });
 
       const newUrl = `${window.location.origin}/${blob.pathname}`;
@@ -106,7 +121,26 @@ export default function Home() {
       await fetchPublicHistory();
     } finally {
       setUploading(false);
+      setUploadProgress(0);
+      setUploadStatus('');
+      setUploadLoadedBytes(0);
+      setUploadTotalBytes(0);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    setActiveView('upload');
+    await uploadFile(file);
   };
 
   const copyToClipboard = (url: string) => {
@@ -142,17 +176,10 @@ export default function Home() {
     return date.toLocaleDateString();
   };
 
-  const totalStorageBytes = 1 * 1024 * 1024 * 1024;
-  const usedStorageBytes = publicHistory.reduce(
-    (total, record) => total + (record.size || 0),
-    0
-  );
-  const usagePercent = Math.min(100, (usedStorageBytes / totalStorageBytes) * 100);
-
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
         * {
           margin: 0;
@@ -162,7 +189,7 @@ export default function Home() {
 
         body {
           background: #0a0a0a;
-          color: #f5f5f0;
+          color: #f5f5f5;
           font-family: 'Montserrat', sans-serif;
           min-height: 100vh;
           overflow-x: hidden;
@@ -176,8 +203,8 @@ export default function Home() {
           width: 200%;
           height: 200%;
           background: 
-            radial-gradient(circle at 20% 30%, rgba(88, 101, 242, 0.08) 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, rgba(88, 101, 242, 0.06) 0%, transparent 50%);
+            radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
           animation: bgRotate 20s linear infinite;
           z-index: -1;
         }
@@ -214,12 +241,12 @@ export default function Home() {
         }
 
         ::-webkit-scrollbar-thumb {
-          background: rgba(88, 101, 242, 0.5);
+          background: rgba(255, 255, 255, 0.35);
           border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-          background: rgba(88, 101, 242, 0.8);
+          background: rgba(255, 255, 255, 0.6);
         }
       `}} />
 
@@ -229,24 +256,38 @@ export default function Home() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
         maxWidth: '1200px',
         margin: '0 auto'
-      }}>
+      }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) {
+          setIsDragging(false);
+        }
+      }}
+      onDrop={handleDrop}
+      >
         <h1 style={{
           fontFamily: "'Montserrat', sans-serif",
-          fontSize: '2rem',
+          fontSize: '1.6rem',
           fontWeight: 700,
           letterSpacing: '-0.02em',
-          background: 'linear-gradient(135deg, #0a0a0a 0%, #5865F2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          marginBottom: '2rem',
+          color: '#f5f5f5',
+          marginBottom: '1.25rem',
           animation: 'fadeSlideIn 1s ease-out',
           textAlign: 'center'
         }}>
-          CDN Uploader
+          Quick, secure, and
+          <br />
+          effortless file sharing.
         </h1>
+
 
         <input
           ref={fileInputRef}
@@ -254,58 +295,158 @@ export default function Home() {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          style={{
-            fontFamily: "'Montserrat', sans-serif",
-            padding: '0.75rem 1.75rem',
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            color: uploading ? '#666666' : '#f5f5f0',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '2px solid',
-            borderColor: uploading ? '#666666' : '#f5f5f0',
-            borderRadius: '50px',
-            cursor: uploading ? 'not-allowed' : 'pointer',
-            transition: 'all 0.3s',
-            position: 'relative',
-            overflow: 'hidden',
-            animation: 'fadeSlideIn 1s ease-out 0.2s backwards',
-            zIndex: 1
-          }}
-          onMouseEnter={(e) => {
-            if (!uploading) {
-              e.currentTarget.style.borderColor = '#5865F2';
-              e.currentTarget.style.color = '#0a0a0a';
-              e.currentTarget.style.background = '#5865F2';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!uploading) {
-              e.currentTarget.style.borderColor = '#f5f5f0';
-              e.currentTarget.style.color = '#f5f5f0';
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-            }
-          }}
-        >
-          {uploading ? 'Uploading...' : 'Choose File'}
-        </button>
 
-        {uploading && (
-          <p style={{
+        {isDragging && (
+          <div
+            style={{
+              marginTop: '0.25rem',
+              marginBottom: '1.25rem',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '1.6rem 1.5rem',
+              borderRadius: '18px',
+              border: '1.5px solid #ffffff',
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#f5f5f5',
+              cursor: 'default',
+              transition: 'all 0.25s ease',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)'
+            }}
+          >
+            <div style={{
+              fontSize: '0.95rem',
+              letterSpacing: '0.02em',
+              fontWeight: 400
+            }}>
+              Drop the file to upload
+            </div>
+            <div style={{
+              marginTop: '0.35rem',
+              fontSize: '0.75rem',
+              color: '#9a9a9a'
+            }}>
+              Release to start uploading
+            </div>
+          </div>
+        )}
+        
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          animation: 'fadeSlideIn 1s ease-out 0.2s backwards'
+        }}>
+          <button
+            onClick={() => setActiveView(activeView === 'history' ? 'upload' : 'history')}
+            style={{
+              fontFamily: "'Montserrat', sans-serif",
+              padding: '0.75rem 1.75rem',
+              fontSize: '0.95rem',
+              fontWeight: 400,
+              letterSpacing: '0.02em',
+              color: activeView === 'history' ? '#f5f5f5' : '#f5f5f5',
+              background: activeView === 'history' ? '#1a1a1a' : '#111111',
+              border: '2px solid',
+              borderColor: '#2a2a2a',
+              borderRadius: '50px',
+              cursor: 'pointer',
+              transition: 'all 0.3s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#2a2a2a';
+              e.currentTarget.style.color = '#f5f5f5';
+              e.currentTarget.style.background = '#1a1a1a';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#2a2a2a';
+              e.currentTarget.style.color = '#f5f5f5';
+              e.currentTarget.style.background = activeView === 'history' ? '#1a1a1a' : '#111111';
+            }}
+          >
+            Upload History
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveView('upload');
+              fileInputRef.current?.click();
+            }}
+            disabled={uploading}
+            style={{
+              fontFamily: "'Montserrat', sans-serif",
+              padding: '0.75rem 1.75rem',
+              fontSize: '0.95rem',
+              fontWeight: 400,
+              letterSpacing: '0.02em',
+              color: uploading ? '#666666' : '#0a0a0a',
+              background: uploading ? '#f0f0f0' : '#ffffff',
+              border: '2px solid',
+              borderColor: uploading ? '#666666' : '#ffffff',
+              borderRadius: '50px',
+              cursor: uploading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s',
+              position: 'relative',
+              overflow: 'hidden',
+              zIndex: 1
+            }}
+            onMouseEnter={(e) => {
+              if (!uploading) {
+                e.currentTarget.style.borderColor = '#ffffff';
+                e.currentTarget.style.color = '#0a0a0a';
+                e.currentTarget.style.background = '#e6e6e6';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!uploading) {
+                e.currentTarget.style.borderColor = '#ffffff';
+                e.currentTarget.style.color = '#0a0a0a';
+                e.currentTarget.style.background = '#ffffff';
+              }
+            }}
+          >
+            {uploading ? 'Uploading...' : 'Choose File'}
+          </button>
+        </div>
+
+        {activeView === 'upload' && uploading && (
+          <div style={{
             marginTop: '1.5rem',
-            fontSize: '0.9rem',
-            color: '#666666',
-            fontStyle: 'italic',
+            width: '100%',
+            maxWidth: '420px',
             animation: 'fadeSlideIn 0.5s ease-out'
           }}>
-            Uploading…
-          </p>
+            <div style={{
+              height: '8px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              border: '1px solid rgba(255, 255, 255, 0.12)'
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${uploadProgress}%`,
+                background: 'linear-gradient(90deg, #ffffff 0%, #bfbfbf 100%)',
+                transition: 'width 0.2s ease-out'
+              }} />
+            </div>
+            <p style={{
+              marginTop: '0.6rem',
+              fontSize: '0.85rem',
+              color: '#666666',
+              fontStyle: 'italic',
+              textAlign: 'center'
+            }}>
+              {uploadStatus || 'Uploading…'}
+              {uploadTotalBytes > 0 && (
+                <span> • {formatFileSize(uploadLoadedBytes)} / {formatFileSize(uploadTotalBytes)}</span>
+              )}
+            </p>
+          </div>
         )}
 
-        {uploadedFiles.length > 0 && (
+        {activeView === 'upload' && uploadedFiles.length > 0 && (
           <div style={{
             marginTop: '2rem',
             animation: 'fadeSlideIn 0.8s ease-out',
@@ -315,7 +456,7 @@ export default function Home() {
             <p style={{
               fontSize: '1rem',
               marginBottom: '1rem',
-              color: '#5865F2',
+              color: '#f5f5f5',
               fontWeight: 700,
               textAlign: 'center'
             }}>
@@ -363,7 +504,7 @@ export default function Home() {
                       target="_blank" 
                       rel="noreferrer"
                       style={{
-                        color: '#f5f5f0',
+                        color: '#f5f5f5',
                         fontSize: '0.85rem',
                         textDecoration: 'none',
                         wordBreak: 'break-all',
@@ -375,7 +516,7 @@ export default function Home() {
                     </a>
                     <span style={{
                       fontSize: '0.75rem',
-                      color: '#5865F2',
+                      color: '#bfbfbf',
                       whiteSpace: 'nowrap',
                       opacity: 0.8
                     }}>
@@ -389,6 +530,7 @@ export default function Home() {
         )}
 
         {/* Public Upload History */}
+        {activeView === 'history' && (
         <div style={{
           marginTop: '3rem',
           width: '100%',
@@ -404,11 +546,11 @@ export default function Home() {
           }}>
             <h2 style={{
               fontSize: '1rem',
-              fontWeight: 700,
+              fontWeight: 200,
               textAlign: 'center',
-              color: '#f5f5f0'
+              color: '#f5f5f5'
             }}>
-              📁 Public Upload History
+              Upload History
             </h2>
             <button
               onClick={fetchPublicHistory}
@@ -416,7 +558,7 @@ export default function Home() {
               style={{
                 padding: '0.5rem 0.8rem',
                 fontSize: '0.7rem',
-                fontWeight: 700,
+                fontWeight: 200,
                 color: verifyingFiles ? '#666666' : '#f5f5f0',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid',
@@ -427,8 +569,8 @@ export default function Home() {
               }}
               onMouseEnter={(e) => {
                 if (!verifyingFiles) {
-                  e.currentTarget.style.borderColor = '#5865F2';
-                  e.currentTarget.style.background = 'rgba(88, 101, 242, 0.1)';
+                  e.currentTarget.style.borderColor = '#ffffff';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -485,8 +627,8 @@ export default function Home() {
                   }}
                   onClick={() => copyToClipboard(record.url)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(88, 101, 242, 0.1)';
-                    e.currentTarget.style.borderColor = '#5865F2';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.borderColor = '#ffffff';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
@@ -504,7 +646,7 @@ export default function Home() {
                       <div style={{
                         fontSize: '0.9rem',
                         fontWeight: 700,
-                        color: '#f5f5f0',
+                        color: '#f5f5f5',
                         marginBottom: '0.25rem',
                         wordBreak: 'break-all'
                       }}>
@@ -524,7 +666,7 @@ export default function Home() {
                     </div>
                     <span style={{
                       fontSize: '0.75rem',
-                      color: '#5865F2',
+                      color: '#bfbfbf',
                       whiteSpace: 'nowrap',
                       opacity: 0.8
                     }}>
@@ -536,7 +678,7 @@ export default function Home() {
                     target="_blank" 
                     rel="noreferrer"
                     style={{
-                      color: '#5865F2',
+                      color: '#bfbfbf',
                       fontSize: '0.75rem',
                       textDecoration: 'none',
                       wordBreak: 'break-all',
@@ -567,49 +709,9 @@ export default function Home() {
             }}>
               Showing {publicHistory.length} recent uploads {verifyingFiles ? '• Verifying files...' : ''}
             </p>
-            
-            <div style={{
-              flex: '1',
-              minWidth: '250px',
-              maxWidth: '350px'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '0.7rem',
-                color: '#666666',
-                marginBottom: '0.4rem'
-              }}>
-                <span>Storage</span>
-                <span>
-                  {formatFileSize(usedStorageBytes)} / {formatFileSize(totalStorageBytes)}
-                </span>
-              </div>
-              <div style={{
-                height: '8px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                borderRadius: '999px',
-                overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${usagePercent}%`,
-                  background: 'linear-gradient(90deg, #5865F2 0%, #8B5CF6 100%)',
-                  transition: 'width 0.4s ease'
-                }} />
-              </div>
-              <div style={{
-                marginTop: '0.3rem',
-                fontSize: '0.65rem',
-                color: '#666666',
-                textAlign: 'right'
-              }}>
-                {usagePercent.toFixed(1)}% used
-              </div>
-            </div>
           </div>
         </div>
+        )}
 
         {/* Copy Success Toast */}
         {copiedUrl && (
@@ -617,11 +719,11 @@ export default function Home() {
             position: 'fixed',
             bottom: '2rem',
             right: '2rem',
-            background: 'linear-gradient(135deg, #5865F2 0%, #8B5CF6 100%)',
-            color: '#fff',
+            background: '#ffffff',
+            color: '#0a0a0a',
             padding: '1rem 1.5rem',
             borderRadius: '12px',
-            boxShadow: '0 8px 24px rgba(88, 101, 242, 0.3)',
+            boxShadow: '0 8px 24px rgba(255, 255, 255, 0.15)',
             animation: 'fadeSlideIn 0.3s ease-out',
             zIndex: 1000,
             fontSize: '0.9rem',
