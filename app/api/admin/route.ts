@@ -13,8 +13,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Convert the proxied URL to the actual blob storage URL
+    // url format: http://localhost:3000/d/filename.ext or https://relaycdn.vercel.app/d/filename.ext
+    // We need: https://rcltxppgseuupozb.public.blob.vercel-storage.com/d/filename.ext
+    const urlObj = new URL(url);
+    const blobUrl = `https://rcltxppgseuupozb.public.blob.vercel-storage.com${urlObj.pathname}`;
+
     // Delete from Vercel Blob storage
-    await del(url);
+    await del(blobUrl);
 
     // Remove from history
     if (typeof global.uploadHistory !== 'undefined') {
@@ -49,7 +55,10 @@ export async function POST(request: NextRequest) {
         // Delete all files from blob storage
         for (const record of urlsToDelete) {
           try {
-            await del(record.url);
+            // Convert proxied URL to blob storage URL
+            const urlObj = new URL(record.url);
+            const blobUrl = `https://rcltxppgseuupozb.public.blob.vercel-storage.com${urlObj.pathname}`;
+            await del(blobUrl);
           } catch (err) {
             console.error('Failed to delete:', record.url, err);
           }
