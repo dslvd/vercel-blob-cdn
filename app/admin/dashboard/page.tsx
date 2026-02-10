@@ -115,8 +115,8 @@ export default function AdminDashboard() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0a0a0a',
-      color: '#f5f5f0',
+      background: 'radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), #0a0a0a',
+      color: '#f5f5f5',
       padding: '2rem'
     }}>
       <div style={{
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
             <h1 style={{
               fontFamily: "'Montserrat', sans-serif",
               fontSize: '1.75rem',
-              fontWeight: 700,
+              fontWeight: 300,
               marginBottom: '0.5rem'
             }}>
               🛠️ Admin Dashboard
@@ -155,12 +155,13 @@ export default function AdminDashboard() {
               disabled={loading}
               style={{
                 padding: '0.625rem 1.25rem',
-                background: 'rgba(255, 255, 255, 0.08)',
+                background: '#111111',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#f5f5f0',
+                borderRadius: '999px',
+                color: '#f5f5f5',
                 fontSize: '0.875rem',
-                fontWeight: 600,
+                fontWeight: 400,
+                letterSpacing: '0.02em',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontFamily: "'Montserrat', sans-serif"
               }}
@@ -172,12 +173,13 @@ export default function AdminDashboard() {
               onClick={logout}
               style={{
                 padding: '0.625rem 1.25rem',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#f5f5f0',
+                background: '#ffffff',
+                border: '1px solid #ffffff',
+                borderRadius: '999px',
+                color: '#0a0a0a',
                 fontSize: '0.875rem',
-                fontWeight: 600,
+                fontWeight: 400,
+                letterSpacing: '0.02em',
                 cursor: 'pointer',
                 fontFamily: "'Montserrat', sans-serif"
               }}
@@ -189,17 +191,17 @@ export default function AdminDashboard() {
 
         {/* Danger Zone */}
         <div style={{
-          background: 'rgba(255, 107, 107, 0.08)',
-          border: '1px solid rgba(255, 107, 107, 0.3)',
-          borderRadius: '12px',
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '16px',
           padding: '1.5rem',
           marginBottom: '2rem'
         }}>
           <h3 style={{
             fontSize: '1rem',
-            fontWeight: 700,
+          fontWeight: 300,
             marginBottom: '0.75rem',
-            color: '#ff6b6b'
+          color: '#f5f5f5'
           }}>
             ⚠️ Danger Zone
           </h3>
@@ -208,12 +210,13 @@ export default function AdminDashboard() {
             disabled={loading || files.length === 0}
             style={{
               padding: '0.625rem 1.25rem',
-              background: '#ff6b6b',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#fff',
+            background: '#111111',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '999px',
+            color: '#f5f5f5',
               fontSize: '0.875rem',
-              fontWeight: 700,
+            fontWeight: 400,
+            letterSpacing: '0.02em',
               cursor: loading || files.length === 0 ? 'not-allowed' : 'pointer',
               opacity: loading || files.length === 0 ? 0.5 : 1,
               fontFamily: "'Montserrat', sans-serif"
@@ -238,7 +241,7 @@ export default function AdminDashboard() {
             padding: '3rem',
             background: 'rgba(255, 255, 255, 0.03)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '12px',
+            borderRadius: '16px',
             color: '#666666'
           }}>
             No files uploaded yet
@@ -247,7 +250,7 @@ export default function AdminDashboard() {
           <div style={{
             background: 'rgba(255, 255, 255, 0.03)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '12px',
+            borderRadius: '16px',
             overflow: 'hidden'
           }}>
             <table style={{
@@ -350,13 +353,14 @@ export default function AdminDashboard() {
                         onClick={() => deleteFile(file.url, file.filename)}
                         disabled={deleting === file.url}
                         style={{
-                          padding: '0.5rem 1rem',
-                          background: 'rgba(255, 107, 107, 0.2)',
-                          border: '1px solid rgba(255, 107, 107, 0.4)',
-                          borderRadius: '6px',
-                          color: '#ff6b6b',
+                          padding: '0.45rem 0.9rem',
+                          background: '#111111',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: '999px',
+                          color: '#f5f5f5',
                           fontSize: '0.8rem',
-                          fontWeight: 600,
+                          fontWeight: 400,
+                          letterSpacing: '0.02em',
                           cursor: deleting === file.url ? 'not-allowed' : 'pointer',
                           opacity: deleting === file.url ? 0.5 : 1,
                           fontFamily: "'Montserrat', sans-serif"

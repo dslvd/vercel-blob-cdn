@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const MAX_DAILY_BYTES = 1024 * 1024 * 1024; // 1GB per IP
+const MAX_DAILY_UPLOADS = 100;
+
 interface UploadRecord {
   url: string;
   filename: string;
   timestamp: number;
   size: number;
   ip?: string;
+}
+
+interface UploadQuota {
+  dayStart: number;
+  bytes: number;
+  count: number;
 }
 
 // This would ideally be stored in a database, but for simplicity we'll use persistent storage
@@ -47,13 +56,38 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'Unknown';
 
+    const now = Date.now();
+    const uploadSize = Number(size) || 0;
+
+    if (typeof global.uploadQuota === 'undefined') {
+      global.uploadQuota = {};
+    }
+
+    const quota = global.uploadQuota[ip] || { dayStart: now, bytes: 0, count: 0 };
+    if (now - quota.dayStart > 24 * 60 * 60 * 1000) {
+      quota.dayStart = now;
+      quota.bytes = 0;
+      quota.count = 0;
+    }
+
+    if (quota.bytes + uploadSize > MAX_DAILY_BYTES || quota.count + 1 > MAX_DAILY_UPLOADS) {
+      return NextResponse.json(
+        { error: 'Quota exceeded. Try again later.' },
+        { status: 429 }
+      );
+    }
+
     const record: UploadRecord = {
       url,
       filename,
-      size: size || 0,
+      size: uploadSize,
       timestamp: Date.now(),
       ip
     };
+
+    quota.bytes += uploadSize;
+    quota.count += 1;
+    global.uploadQuota[ip] = quota;
 
     await addToHistory(record);
 
@@ -88,7 +122,6 @@ async function getHistoryFromStorage(): Promise<UploadRecord[]> {
     global.uploadHistory = [];
   }
   
-  // Return last 100 uploads, sorted by newest first
   return (global.uploadHistory as UploadRecord[])
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 100);
@@ -120,4 +153,5 @@ async function addToHistory(record: UploadRecord): Promise<void> {
 // Type declaration for global storage
 declare global {
   var uploadHistory: UploadRecord[] | undefined;
+  var uploadQuota: Record<string, UploadQuota> | undefined;
 }

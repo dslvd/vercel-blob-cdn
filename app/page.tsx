@@ -13,8 +13,15 @@ interface UploadRecord {
   ip?: string;
 }
 
+interface UploadedItem {
+  url: string;
+  filename: string;
+  size: number;
+}
+
 export default function Home() {
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
@@ -142,6 +149,13 @@ export default function Home() {
   };
 
   const uploadFile = async (file: File, notify: boolean = true) => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      if (notify) {
+        showToast('File too large (max 100MB)', 'error');
+      }
+      throw new Error('File too large');
+    }
+
     setUploading(true);
     setUploadProgress(0);
     setUploadStatus('Preparing upload...');
@@ -163,7 +177,14 @@ export default function Home() {
       });
 
       const newUrl = `${window.location.origin}/${blob.pathname}`;
-      setUploadedFiles(prev => [newUrl, ...prev]);
+      setUploadedFiles(prev => [
+        {
+          url: newUrl,
+          filename: file.name,
+          size: file.size
+        },
+        ...prev
+      ]);
 
       // Add to public history via API
       await fetch('/api/history', {
@@ -241,13 +262,17 @@ export default function Home() {
     await handleFileDrop(e.dataTransfer);
   };
 
-  const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      showToast('Copied to clipboard', 'success');
+  const copyText = (text: string, successMessage: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage, 'success');
     }).catch((err) => {
       console.error('Failed to copy to clipboard:', err);
       showToast('Copy failed', 'error');
     });
+  };
+
+  const copyToClipboard = (url: string) => {
+    copyText(url, 'Copied to clipboard');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -272,6 +297,19 @@ export default function Home() {
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
+
+  const formatShortUrl = (filename: string) => {
+    return `relaycdn.vercel.app/d/${filename}`;
+  };
+
+  const buildEmbedHtml = (url: string) => {
+    return `<iframe src="${url}" width="100%" height="500" style="border:0;" loading="lazy"></iframe>`;
+  };
+
+  const buildEmbedMarkdown = (url: string, filename: string) => {
+    return `[${filename}](${url})`;
+  };
+
 
   return (
     <>
@@ -518,6 +556,7 @@ export default function Home() {
           </button>
         </div>
 
+
         {activeView === 'upload' && uploading && (
           <div style={{
             marginTop: '1.5rem',
@@ -579,8 +618,9 @@ export default function Home() {
               borderRadius: '18px',
               padding: '0.85rem'
             }}>
-              {uploadedFiles.map((url, index) => {
-                const filename = url.split('/').pop() || 'file';
+              {uploadedFiles.map((fileItem, index) => {
+                const filename = fileItem.filename;
+                const url = fileItem.url;
                 const extension = filename.includes('.')
                   ? filename.split('.').pop()?.toUpperCase()
                   : 'FILE';
@@ -635,7 +675,7 @@ export default function Home() {
                             fontWeight: 500,
                             wordBreak: 'break-all'
                           }}>
-                            {filename}
+                            {formatShortUrl(filename)}
                           </div>
                           <div style={{
                             fontSize: '0.75rem',
@@ -689,6 +729,77 @@ export default function Home() {
                       >
                         {url}
                       </a>
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
+                      }}>
+                        Embed
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap'
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyText(buildEmbedHtml(url), 'Embed HTML copied');
+                          }}
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: '0.7rem',
+                            fontWeight: 400,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: '#0a0a0a',
+                            background: '#ffffff',
+                            border: '1px solid #ffffff',
+                            borderRadius: '999px',
+                            padding: '0.3rem 0.65rem',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#e6e6e6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#ffffff';
+                          }}
+                        >
+                          HTML
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyText(buildEmbedMarkdown(url, filename), 'Embed markdown copied');
+                          }}
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: '0.7rem',
+                            fontWeight: 400,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: '#f5f5f5',
+                            background: '#111111',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '999px',
+                            padding: '0.3rem 0.65rem',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#1a1a1a';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#111111';
+                          }}
+                        >
+                          MD
+                        </button>
+                      </div>
+
 
                       <div style={{
                         fontSize: '0.7rem',
@@ -897,7 +1008,7 @@ export default function Home() {
                             fontWeight: 500,
                             wordBreak: 'break-all'
                           }}>
-                            {record.filename}
+                            {formatShortUrl(record.filename)}
                           </div>
                           <div style={{
                             fontSize: '0.75rem',
@@ -943,6 +1054,7 @@ export default function Home() {
                       }}>
                         {formatFileSize(record.size)}
                       </div>
+
 
                       <div style={{
                         fontSize: '0.7rem',

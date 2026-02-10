@@ -45,22 +45,23 @@ export default function AdminLogin() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#0a0a0a',
+      background: 'radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), #0a0a0a',
       padding: '2rem'
     }}>
       <div style={{
-        background: 'rgba(255, 255, 255, 0.05)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '16px',
+        background: 'rgba(255, 255, 255, 0.04)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: '18px',
         padding: '3rem',
         maxWidth: '400px',
-        width: '100%'
+        width: '100%',
+        boxShadow: '0 18px 40px rgba(0, 0, 0, 0.45)'
       }}>
         <h1 style={{
           fontFamily: "'Montserrat', sans-serif",
           fontSize: '1.5rem',
-          fontWeight: 700,
-          color: '#f5f5f0',
+          fontWeight: 300,
+          color: '#f5f5f5',
           marginBottom: '2rem',
           textAlign: 'center'
         }}>
@@ -75,11 +76,11 @@ export default function AdminLogin() {
             placeholder="Enter password"
             style={{
               width: '100%',
-              padding: '0.800rem',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '8px',
-              color: '#f5f5f0',
+              padding: '0.85rem',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              borderRadius: '10px',
+              color: '#f5f5f5',
               fontSize: '0.8rem',
               marginBottom: '1rem',
               outline: 'none',
@@ -90,10 +91,11 @@ export default function AdminLogin() {
 
           {error && (
             <p style={{
-              color: '#ff6b6b',
+              color: '#f5f5f5',
               fontSize: '0.85rem',
               marginBottom: '1rem',
-              textAlign: 'center'
+              textAlign: 'center',
+              opacity: 0.7
             }}>
               {error}
             </p>
@@ -104,21 +106,28 @@ export default function AdminLogin() {
             disabled={loading}
             style={{
               width: '100%',
-              padding: '0.875rem',
-              background: loading 
-                ? 'rgba(88, 101, 242, 0.5)' 
-                : 'linear-gradient(135deg, #5865F2 0%, #8B5CF6 100%)',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#fff',
+              padding: '0.9rem',
+              background: loading ? '#e6e6e6' : '#ffffff',
+              border: '1px solid #ffffff',
+              borderRadius: '10px',
+              color: '#0a0a0a',
               fontSize: '0.8rem',
-              fontWeight: 700,
+              fontWeight: 400,
+              letterSpacing: '0.02em',
               cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'transform 0.2s',
+              transition: 'transform 0.2s, background 0.2s',
               fontFamily: "'Montserrat', sans-serif"
             }}
-            onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = 'scale(1.02)')}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.background = '#e6e6e6';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.background = '#ffffff';
+            }}
           >
             {loading ? 'Checking...' : 'Login'}
           </button>
