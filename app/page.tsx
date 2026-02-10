@@ -26,6 +26,14 @@ export default function Home() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [verifyingFiles, setVerifyingFiles] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const emptyMessages = [
+    'No uploads yet 🚀',
+    'Empty for now 👀',
+    'Nothing here… yet',
+    'Upload something!',
+    'Drop a file in ✨'
+  ];
+  const [emptyMessageIndex] = useState(() => Math.floor(Math.random() * emptyMessages.length));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -521,7 +529,7 @@ export default function Home() {
               fontSize: '1rem',
               marginBottom: '1rem',
               color: '#f5f5f5',
-              fontWeight: 700,
+              fontWeight: 200,
               textAlign: 'center'
             }}>
               Uploaded ({uploadedFiles.length})
@@ -711,7 +719,7 @@ export default function Home() {
               textAlign: 'center',
               color: '#f5f5f5'
             }}>
-              Upload History
+              Public Upload History
             </h2>
             <button
               onClick={() => !verifyingFiles && fetchPublicHistory()}
@@ -787,7 +795,7 @@ export default function Home() {
               borderRadius: '12px',
               color: '#666666'
             }}>
-              No uploads yet.
+              {emptyMessages[emptyMessageIndex]}
             </div>
           ) : (
             <div style={{
