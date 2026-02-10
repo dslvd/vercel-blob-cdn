@@ -11,8 +11,28 @@ export async function GET(
     // Construct the Vercel Blob storage URL
     const blobUrl = `https://rcltxppgseuupozb.public.blob.vercel-storage.com/${pathname}`;
     
-    // Redirect to the actual blob URL
-    return NextResponse.redirect(blobUrl, { status: 307 });
+    // Fetch and proxy the file content
+    const response = await fetch(blobUrl);
+    
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'File not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Get the file content
+    const blob = await response.blob();
+    
+    // Return the file with proper headers
+    return new NextResponse(blob, {
+      status: 200,
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+        'Content-Length': response.headers.get('Content-Length') || '',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      }
+    });
   } catch (error) {
     console.error('Error proxying file:', error);
     return NextResponse.json(
