@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { upload } from '@vercel/blob/client';
+import logo from './logo.png';
 
 interface UploadRecord {
   url: string;
@@ -23,11 +25,47 @@ export default function Home() {
   const [publicHistory, setPublicHistory] = useState<UploadRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [verifyingFiles, setVerifyingFiles] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPublicHistory();
+  }, []);
+
+  useEffect(() => {
+    const handleWindowDragOver = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    const handleWindowDragEnter = (event: DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragLeave = (event: DragEvent) => {
+      if (event.target === document || event.target === document.body) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDrop = (event: DragEvent) => {
+      event.preventDefault();
+      setIsDragging(false);
+      handleFileDrop(event.dataTransfer);
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('dragenter', handleWindowDragEnter);
+    window.addEventListener('dragleave', handleWindowDragLeave);
+    window.addEventListener('drop', handleWindowDrop);
+
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('dragenter', handleWindowDragEnter);
+      window.removeEventListener('dragleave', handleWindowDragLeave);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
   }, []);
 
   const fetchPublicHistory = async () => {
@@ -53,6 +91,11 @@ export default function Home() {
       setLoadingHistory(false);
       setVerifyingFiles(false);
     }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2200);
   };
 
   const verifyFileExistence = async (records: UploadRecord[]): Promise<UploadRecord[]> => {
@@ -123,6 +166,10 @@ export default function Home() {
 
       // Refresh history
       await fetchPublicHistory();
+      showToast('Upload complete', 'success');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      showToast('Upload failed', 'error');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -138,22 +185,25 @@ export default function Home() {
     await uploadFile(file);
   };
 
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
+  const handleFileDrop = async (dataTransfer: DataTransfer | null) => {
+    const file = dataTransfer?.files?.[0];
     if (!file) return;
     setActiveView('upload');
     await uploadFile(file);
   };
 
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    await handleFileDrop(e.dataTransfer);
+  };
+
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
-      setCopiedUrl(url);
-      setTimeout(() => setCopiedUrl(null), 2000);
+      showToast('Copied to clipboard', 'success');
     }).catch((err) => {
       console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy URL');
+      showToast('Copy failed', 'error');
     });
   };
 
@@ -269,26 +319,27 @@ export default function Home() {
         textAlign: 'center',
         maxWidth: '1200px',
         margin: '0 auto'
-      }}
-      onDragEnter={(e) => {
-        e.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragOver={(e) => e.preventDefault()}
-      onDragLeave={(e) => {
-        if (e.currentTarget === e.target) {
-          setIsDragging(false);
-        }
-      }}
-      onDrop={handleDrop}
-      >
-        <h1 style={{
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '0.1rem'
+        }}>
+          <Image
+            src={logo}
+            alt="Logo"
+            width={200}
+            height={200}
+            style={{}}
+          />
+          <h1 style={{
           fontFamily: "'Montserrat', sans-serif",
           fontSize: '1.6rem',
           fontWeight: 700,
           letterSpacing: '-0.02em',
           color: '#f5f5f5',
-          marginBottom: '1.25rem',
           animation: 'fadeSlideIn 1s ease-out',
           textAlign: 'center'
         }}>
@@ -296,6 +347,7 @@ export default function Home() {
           <br />
           effortless file sharing.
         </h1>
+        </div>
 
 
         <input
@@ -321,6 +373,8 @@ export default function Home() {
               transition: 'all 0.25s ease',
               boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)'
             }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
           >
             <div style={{
               fontSize: '0.95rem',
@@ -345,6 +399,7 @@ export default function Home() {
           justifyContent: 'center',
           gap: '1rem',
           flexWrap: 'wrap',
+          marginTop: '1.25rem',
           animation: 'fadeSlideIn 1s ease-out 0.2s backwards'
         }}>
           <button
@@ -460,7 +515,7 @@ export default function Home() {
             marginTop: '2rem',
             animation: 'fadeSlideIn 0.8s ease-out',
             width: '100%',
-            maxWidth: '800px'
+            maxWidth: '720px'
           }}>
             <p style={{
               fontSize: '1rem',
@@ -473,12 +528,12 @@ export default function Home() {
             </p>
             
             <div style={{
-              maxHeight: '360px',
+              maxHeight: '320px',
               overflowY: 'auto',
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '18px',
-              padding: '1rem'
+              padding: '0.85rem'
             }}>
               {uploadedFiles.map((url, index) => {
                 const filename = url.split('/').pop() || 'file';
@@ -491,7 +546,7 @@ export default function Home() {
                     key={index}
                     style={{
                       marginBottom: index < uploadedFiles.length - 1 ? '0.85rem' : '0',
-                      padding: '1.1rem 1.25rem',
+                      padding: '0.95rem 1.1rem',
                       background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                       borderRadius: '16px',
@@ -561,10 +616,10 @@ export default function Home() {
                     </div>
 
                     <div style={{
-                      marginTop: '0.9rem',
+                      marginTop: '0.75rem',
                       display: 'grid',
-                      gridTemplateColumns: '80px 1fr',
-                      gap: '0.45rem 1rem',
+                      gridTemplateColumns: '72px 1fr',
+                      gap: '0.35rem 0.9rem',
                       alignItems: 'center',
                       textAlign: 'left'
                     }}>
@@ -640,7 +695,7 @@ export default function Home() {
         <div style={{
           marginTop: '3rem',
           width: '100%',
-          maxWidth: '800px',
+          maxWidth: '720px',
           animation: 'fadeSlideIn 1s ease-out 0.4s backwards'
         }}>
           <div style={{
@@ -738,88 +793,176 @@ export default function Home() {
             <div style={{
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '1rem',
-              maxHeight: '500px',
+              borderRadius: '18px',
+              padding: '0.85rem',
+              maxHeight: '320px',
               overflowY: 'auto'
             }}>
-              {publicHistory.map((record, index) => (
-                <div
-                  key={index}
-                  style={{
-                    marginBottom: index < publicHistory.length - 1 ? '0.75rem' : '0',
-                    padding: '1rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    transition: 'all 0.3s',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => copyToClipboard(record.url)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.borderColor = '#ffffff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: '1rem',
-                    marginBottom: '0.5rem'
-                  }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+              {publicHistory.map((record, index) => {
+                const extension = record.filename.includes('.')
+                  ? record.filename.split('.').pop()?.toUpperCase()
+                  : 'FILE';
+
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      marginBottom: index < publicHistory.length - 1 ? '0.85rem' : '0',
+                      padding: '0.95rem 1.1rem',
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '16px',
+                      transition: 'all 0.3s',
+                      cursor: 'pointer',
+                      boxShadow: '0 10px 24px rgba(0, 0, 0, 0.25)'
+                    }}
+                    onClick={() => copyToClipboard(record.url)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05))';
+                      e.currentTarget.style.borderColor = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03))';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '1rem'
+                    }}>
                       <div style={{
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                        color: '#f5f5f5',
-                        marginBottom: '0.25rem',
-                        wordBreak: 'break-all'
-                      }}>
-                        {record.filename}
-                      </div>
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: '#666666',
                         display: 'flex',
-                        gap: '1rem',
-                        flexWrap: 'wrap'
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        minWidth: 0
                       }}>
-                        <span>{formatFileSize(record.size)}</span>
-                        <span>•</span>
-                        <span>{formatTimestamp(record.timestamp)}</span>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '999px',
+                          background: '#ffffff',
+                          opacity: 0.7,
+                          boxShadow: '0 0 12px rgba(255, 255, 255, 0.4)'
+                        }} />
+                        <div style={{ textAlign: 'left', minWidth: 0 }}>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: '#f5f5f5',
+                            fontWeight: 500,
+                            wordBreak: 'break-all'
+                          }}>
+                            {record.filename}
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: '#9a9a9a'
+                          }}>
+                            Uploaded {formatTimestamp(record.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#f5f5f5',
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '999px',
+                        letterSpacing: '0.08em'
+                      }}>
+                        {extension}
                       </div>
                     </div>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      color: '#bfbfbf',
-                      whiteSpace: 'nowrap',
-                      opacity: 0.8
+
+                    <div style={{
+                      marginTop: '0.75rem',
+                      display: 'grid',
+                      gridTemplateColumns: '72px 1fr',
+                      gap: '0.35rem 0.9rem',
+                      alignItems: 'center',
+                      textAlign: 'left'
                     }}>
-                      📋 Copy
-                    </span>
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
+                      }}>
+                        Size
+                      </div>
+                      <div style={{
+                        fontSize: '0.8rem',
+                        color: '#bfbfbf'
+                      }}>
+                        {formatFileSize(record.size)}
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
+                      }}>
+                        Link
+                      </div>
+                      <a 
+                        href={record.url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{
+                          color: '#bfbfbf',
+                          fontSize: '0.8rem',
+                          textDecoration: 'none',
+                          wordBreak: 'break-all'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {record.url}
+                      </a>
+
+                      <div style={{
+                        fontSize: '0.7rem',
+                        color: '#9a9a9a',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em'
+                      }}>
+                        Action
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyToClipboard(record.url);
+                        }}
+                        style={{
+                          justifySelf: 'start',
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: '0.75rem',
+                          fontWeight: 400,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: '#0a0a0a',
+                          background: '#ffffff',
+                          border: '1px solid #ffffff',
+                          borderRadius: '999px',
+                          padding: '0.35rem 0.75rem',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#e6e6e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#ffffff';
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
-                  <a 
-                    href={record.url} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    style={{
-                      color: '#bfbfbf',
-                      fontSize: '0.75rem',
-                      textDecoration: 'none',
-                      wordBreak: 'break-all',
-                      opacity: 0.7
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {record.url}
-                  </a>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
           
@@ -843,23 +986,25 @@ export default function Home() {
         </div>
         )}
 
-        {/* Copy Success Toast */}
-        {copiedUrl && (
+        {/* Toast Notifications */}
+        {toast && (
           <div style={{
             position: 'fixed',
-            bottom: '2rem',
-            right: '2rem',
-            background: '#ffffff',
-            color: '#0a0a0a',
-            padding: '1rem 1.5rem',
-            borderRadius: '12px',
-            boxShadow: '0 8px 24px rgba(255, 255, 255, 0.15)',
-            animation: 'fadeSlideIn 0.3s ease-out',
+            bottom: '1.25rem',
+            right: '1.25rem',
+            background: toast.type === 'error' ? '#1a1a1a' : '#ffffff',
+            color: toast.type === 'error' ? '#f5f5f5' : '#0a0a0a',
+            padding: '0.65rem 0.95rem',
+            borderRadius: '10px',
+            boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35)',
+            border: toast.type === 'error' ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid #ffffff',
+            animation: 'fadeSlideIn 0.25s ease-out',
             zIndex: 1000,
-            fontSize: '0.9rem',
-            fontWeight: 700
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            letterSpacing: '0.02em'
           }}>
-            ✓ Copied to clipboard!
+            {toast.message}
           </div>
         )}
       </main>
