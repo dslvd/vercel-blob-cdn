@@ -26,6 +26,7 @@ export default function Home() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [verifyingFiles, setVerifyingFiles] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
   const emptyMessages = [
     'No uploads yet 🚀',
     'Empty for now 👀',
@@ -103,7 +104,10 @@ export default function Home() {
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 2200);
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = window.setTimeout(() => setToast(null), 2200);
   };
 
   const verifyFileExistence = async (records: UploadRecord[]): Promise<UploadRecord[]> => {
@@ -196,12 +200,16 @@ export default function Home() {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const file of files) {
+    for (const [index, file] of files.entries()) {
+      const current = index + 1;
+      showToast(`Uploading ${current} of ${files.length}`, 'info');
       try {
         await uploadFile(file, false);
         successCount += 1;
+        showToast(`Uploaded ${current} of ${files.length}`, 'success');
       } catch {
         errorCount += 1;
+        showToast(`Failed ${current} of ${files.length}`, 'error');
       }
     }
 
