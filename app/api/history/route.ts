@@ -26,10 +26,17 @@ export async function GET() {
     
     const history = await getHistoryFromStorage();
     
-    return NextResponse.json({ 
-      history,
-      count: history.length 
-    });
+    return NextResponse.json(
+      {
+        history,
+        count: history.length
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
+    );
   } catch (error) {
     console.error('Error fetching history:', error);
     return NextResponse.json({ 

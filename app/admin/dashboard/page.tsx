@@ -11,10 +11,18 @@ interface UploadRecord {
   ip?: string;
 }
 
+type SortKey = 'filename' | 'size' | 'timestamp' | 'ip';
+type SortOrder = 'asc' | 'desc';
+
 export default function AdminDashboard() {
   const [files, setFiles] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('timestamp');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [filterType, setFilterType] = useState<string>('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -31,7 +39,7 @@ export default function AdminDashboard() {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/history');
+      const response = await fetch('/api/history', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setFiles(data.history || []);
@@ -110,7 +118,132 @@ export default function AdminDashboard() {
     return new Date(timestamp).toLocaleString();
   };
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('desc');
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFiles.size === filteredFiles.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(filteredFiles.map(f => f.url)));
+    }
+  };
+
+  const toggleSelectFile = (url: string) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(url)) {
+      newSelected.delete(url);
+    } else {
+      newSelected.add(url);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const deleteSelected = async () => {
+    if (selectedFiles.size === 0) return;
+    if (!confirm(`Delete ${selectedFiles.size} selected file(s)?`)) return;
+
+    try {
+      setLoading(true);
+      const deletePromises = Array.from(selectedFiles).map(url =>
+        fetch('/api/admin', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        })
+      );
+      await Promise.all(deletePromises);
+      setSelectedFiles(new Set());
+      await fetchFiles();
+    } catch (error) {
+      console.error('Failed to delete files:', error);
+      alert('Failed to delete some files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportData = (format: 'json' | 'csv') => {
+    if (format === 'json') {
+      const dataStr = JSON.stringify(files, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `upload-history-${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const headers = ['Filename', 'URL', 'Size (bytes)', 'Uploaded', 'IP'];
+      const rows = files.map(f => [
+        f.filename,
+        f.url,
+        f.size.toString(),
+        new Date(f.timestamp).toISOString(),
+        f.ip || 'Unknown'
+      ]);
+      const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      const dataBlob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `upload-history-${Date.now()}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const getFileExtension = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    return ext || 'unknown';
+  };
+
+  const filteredFiles = files.filter(file => {
+    const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         file.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (file.ip && file.ip.includes(searchQuery));
+    
+    if (!matchesSearch) return false;
+    
+    if (filterType === 'all') return true;
+    
+    const ext = getFileExtension(file.filename);
+    if (filterType === 'images') return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    if (filterType === 'videos') return ['mp4', 'webm', 'mov', 'avi'].includes(ext);
+    if (filterType === 'documents') return ['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext);
+    
+    return true;
+  }).sort((a, b) => {
+    let aVal: any = a[sortKey];
+    let bVal: any = b[sortKey];
+    
+    if (sortKey === 'filename' || sortKey === 'ip') {
+      aVal = (aVal || '').toLowerCase();
+      bVal = (bVal || '').toLowerCase();
+    }
+    
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const uploadsToday = files.filter(f => {
+    const today = new Date();
+    const uploadDate = new Date(f.timestamp);
+    return uploadDate.toDateString() === today.toDateString();
+  }).length;
+  const uniqueIPs = new Set(files.map(f => f.ip).filter(Boolean)).size;
 
   return (
     <div style={{
@@ -145,11 +278,11 @@ export default function AdminDashboard() {
               fontSize: '0.9rem',
               color: '#666666'
             }}>
-              {files.length} files • {formatFileSize(totalSize)} total
+              Manage all uploads and monitor activity
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button
               onClick={fetchFiles}
               disabled={loading}
@@ -187,6 +320,170 @@ export default function AdminDashboard() {
               🚪 Logout
             </button>
           </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '1rem',
+          marginBottom: '2rem'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '16px',
+            padding: '1.5rem'
+          }}>
+            <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '0.5rem' }}>Total Files</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{files.length}</div>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '16px',
+            padding: '1.5rem'
+          }}>
+            <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '0.5rem' }}>Total Storage</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{formatFileSize(totalSize)}</div>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '16px',
+            padding: '1.5rem'
+          }}>
+            <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '0.5rem' }}>Uploads Today</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{uploadsToday}</div>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '16px',
+            padding: '1.5rem'
+          }}>
+            <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '0.5rem' }}>Unique IPs</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{uniqueIPs}</div>
+          </div>
+        </div>
+
+        {/* Search, Filter & Export */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="🔍 Search files, URLs, or IPs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                flex: '1 1 300px',
+                padding: '0.75rem 1rem',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '10px',
+                color: '#f5f5f5',
+                fontSize: '0.875rem',
+                outline: 'none',
+                fontFamily: "'Montserrat', sans-serif"
+              }}
+            />
+            
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                padding: '0.75rem 1rem',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '10px',
+                color: '#f5f5f5',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif"
+              }}
+            >
+              <option value="all">All Types</option>
+              <option value="images">Images</option>
+              <option value="videos">Videos</option>
+              <option value="documents">Documents</option>
+            </select>
+
+            <button
+              onClick={() => exportData('json')}
+              style={{
+                padding: '0.75rem 1rem',
+                background: '#111111',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '10px',
+                color: '#f5f5f5',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif"
+              }}
+            >
+              📥 Export JSON
+            </button>
+
+            <button
+              onClick={() => exportData('csv')}
+              style={{
+                padding: '0.75rem 1rem',
+                background: '#111111',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '10px',
+                color: '#f5f5f5',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif"
+              }}
+            >
+              📥 Export CSV
+            </button>
+          </div>
+
+          {selectedFiles.size > 0 && (
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <span style={{ color: '#666666', fontSize: '0.875rem' }}>
+                {selectedFiles.size} selected
+              </span>
+              <button
+                onClick={deleteSelected}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#111111',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '10px',
+                  color: '#f5f5f5',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  fontFamily: "'Montserrat', sans-serif"
+                }}
+              >
+                🗑️ Delete Selected
+              </button>
+              <button
+                onClick={() => setSelectedFiles(new Set())}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'transparent',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '10px',
+                  color: '#f5f5f5',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  fontFamily: "'Montserrat', sans-serif"
+                }}
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Danger Zone */}
@@ -235,7 +532,7 @@ export default function AdminDashboard() {
           }}>
             Loading files...
           </div>
-        ) : files.length === 0 ? (
+        ) : filteredFiles.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '3rem',
@@ -244,18 +541,19 @@ export default function AdminDashboard() {
             borderRadius: '16px',
             color: '#666666'
           }}>
-            No files uploaded yet
+            {searchQuery || filterType !== 'all' ? 'No files match your filters' : 'No files uploaded yet'}
           </div>
         ) : (
           <div style={{
             background: 'rgba(255, 255, 255, 0.03)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             borderRadius: '16px',
-            overflow: 'hidden'
+            overflow: 'auto'
           }}>
             <table style={{
               width: '100%',
-              borderCollapse: 'collapse'
+              borderCollapse: 'collapse',
+              minWidth: '800px'
             }}>
               <thead>
                 <tr style={{
@@ -264,32 +562,73 @@ export default function AdminDashboard() {
                 }}>
                   <th style={{
                     padding: '1rem',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#666666'
-                  }}>Filename</th>
-                  <th style={{
-                    padding: '1rem',
-                    textAlign: 'left',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#666666'
-                  }}>Size</th>
-                  <th style={{
-                    padding: '1rem',
-                    textAlign: 'left',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#666666'
-                  }}>Uploaded</th>
-                  <th style={{
-                    padding: '1rem',
-                    textAlign: 'left',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#666666'
-                  }}>IP Address</th>
+                    width: '50px'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedFiles.size === filteredFiles.length && filteredFiles.length > 0}
+                      onChange={toggleSelectAll}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                  </th>
+                  <th 
+                    onClick={() => toggleSort('filename')}
+                    style={{
+                      padding: '1rem',
+                      textAlign: 'left',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: '#666666',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Filename {sortKey === 'filename' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => toggleSort('size')}
+                    style={{
+                      padding: '1rem',
+                      textAlign: 'left',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: '#666666',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => toggleSort('timestamp')}
+                    style={{
+                      padding: '1rem',
+                      textAlign: 'left',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: '#666666',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Uploaded {sortKey === 'timestamp' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => toggleSort('ip')}
+                    style={{
+                      padding: '1rem',
+                      textAlign: 'left',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: '#666666',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    IP Address {sortKey === 'ip' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
                   <th style={{
                     padding: '1rem',
                     textAlign: 'center',
@@ -300,28 +639,43 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {files.map((file, index) => (
+                {filteredFiles.map((file, index) => (
                   <tr
                     key={index}
                     style={{
-                      borderBottom: index < files.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
+                      borderBottom: index < filteredFiles.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                      background: selectedFiles.has(file.url) ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
                     }}
                   >
                     <td style={{
                       padding: '1rem',
+                      textAlign: 'center'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.has(file.url)}
+                        onChange={() => toggleSelectFile(file.url)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </td>
+                    <td style={{
+                      padding: '1rem',
                       fontSize: '0.9rem'
                     }}>
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          color: '#5865F2',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        {file.filename}
-                      </a>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            color: '#5865F2',
+                            textDecoration: 'none',
+                            wordBreak: 'break-all'
+                          }}
+                        >
+                          {file.filename}
+                        </a>
+                      </div>
                     </td>
                     <td style={{
                       padding: '1rem',
@@ -349,25 +703,41 @@ export default function AdminDashboard() {
                       padding: '1rem',
                       textAlign: 'center'
                     }}>
-                      <button
-                        onClick={() => deleteFile(file.url, file.filename)}
-                        disabled={deleting === file.url}
-                        style={{
-                          padding: '0.45rem 0.9rem',
-                          background: '#111111',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          borderRadius: '999px',
-                          color: '#f5f5f5',
-                          fontSize: '0.8rem',
-                          fontWeight: 400,
-                          letterSpacing: '0.02em',
-                          cursor: deleting === file.url ? 'not-allowed' : 'pointer',
-                          opacity: deleting === file.url ? 0.5 : 1,
-                          fontFamily: "'Montserrat', sans-serif"
-                        }}
-                      >
-                        {deleting === file.url ? '⏳' : '🗑️ Delete'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => copyToClipboard(file.url)}
+                          title="Copy URL"
+                          style={{
+                            padding: '0.45rem 0.7rem',
+                            background: '#111111',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '8px',
+                            color: '#f5f5f5',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            fontFamily: "'Montserrat', sans-serif"
+                          }}
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={() => deleteFile(file.url, file.filename)}
+                          disabled={deleting === file.url}
+                          style={{
+                            padding: '0.45rem 0.7rem',
+                            background: '#111111',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '8px',
+                            color: '#f5f5f5',
+                            fontSize: '0.8rem',
+                            cursor: deleting === file.url ? 'not-allowed' : 'pointer',
+                            opacity: deleting === file.url ? 0.5 : 1,
+                            fontFamily: "'Montserrat', sans-serif"
+                          }}
+                        >
+                          {deleting === file.url ? '⏳' : '🗑️'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

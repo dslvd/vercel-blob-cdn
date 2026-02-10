@@ -20,7 +20,7 @@ interface UploadedItem {
 }
 
 export default function Home() {
-  const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+  const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
   const [uploadedFiles, setUploadedFiles] = useState<UploadedItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -87,8 +87,9 @@ export default function Home() {
   const fetchPublicHistory = async () => {
     const startTime = Date.now();
     try {
+      setLoadingHistory(true);
       setVerifyingFiles(true);
-      const response = await fetch('/api/history');
+      const response = await fetch('/api/history', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         const records = data.history || [];
@@ -151,7 +152,7 @@ export default function Home() {
   const uploadFile = async (file: File, notify: boolean = true) => {
     if (file.size > MAX_UPLOAD_BYTES) {
       if (notify) {
-        showToast('File too large (max 100MB)', 'error');
+        showToast('File too large (max 200MB)', 'error');
       }
       throw new Error('File too large');
     }
@@ -555,6 +556,16 @@ export default function Home() {
             {uploading ? 'Uploading...' : 'Choose File'}
           </button>
         </div>
+
+        <p style={{
+          marginTop: '0.85rem',
+          fontSize: '0.8rem',
+          color: '#9a9a9a',
+          textAlign: 'center',
+          letterSpacing: '0.02em'
+        }}>
+          Max upload size: 200MB per file
+        </p>
 
 
         {activeView === 'upload' && uploading && (
